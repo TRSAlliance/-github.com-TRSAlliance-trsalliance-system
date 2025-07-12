@@ -1,4 +1,3 @@
-# TRS SECURE DEPENDENCY UPDATE PROTOCOL v2.4
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -15,16 +14,17 @@ updates:
     commit-message:
       prefix: "TRS SECURITY"
       prefix-development: "TRS DEV"
-    metadata:
-      security: "high"
-      trs-audit: "enforced"
-
+      include: "scope"
+    reviewers:
+      - "TRSAlliance/security-team"
+    labels:
+      - "trs-dependencies"
   - package-ecosystem: "github-actions"
     directory: "/.github/workflows"
     schedule:
       interval: "daily"
       time: "05:00"
-    labels:
-      - "trs-dependencies"
     reviewers:
       - "TRSAlliance/security-team"
+    labels:
+      - "trs-actions"
