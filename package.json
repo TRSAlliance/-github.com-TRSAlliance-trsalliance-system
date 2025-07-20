@@ -32,3 +32,16 @@
     ]
   }
 }
+{
+  "name": "trs-unity-protocol",
+  "version": "2.3.1",
+  "scripts": {
+    "setup-supabase-integration": "ts-node src/lib/supabase-integration.ts",
+    "deploy-ai-boundaries": "ts-node src/lib/enhanced-ai-boundaries.ts",
+    "configure-trs-deployment": "ts-node src/deploy/trs-deployment-config.ts",
+    "initialize-deepseek-analyzer": "ts-node src/ai-agents/deepseek-analyzer.ts",
+    "enable-firebase-sync": "ts-node src/lib/firebase-sync.ts",
+    "validate-system-health": "ts-node src/deploy/system-validator.ts",
+    "deploy-production": "ts-node src/deploy/deploy-guardian.ts"
+  }
+}
