@@ -1,5 +1,4 @@
 [build]
-  base = "TRSAlliance"
   command = "npm run build"
   publish = "build"
 
