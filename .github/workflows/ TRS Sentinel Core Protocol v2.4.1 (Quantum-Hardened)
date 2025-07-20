@@ -1,0 +1,128 @@
+name: 🛡️ TRS Sentinel Core Protocol v2.4.1 (Quantum-Hardened)
+
+on:
+  workflow_dispatch:
+    inputs:
+      auth_token:
+        description: '🔐 24-char TRS Quantum Auth Token'
+        required: true
+        type: password
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/TRS_Sentinel_Core_Protocol.yml'
+
+env:
+  TRS_VERSION: '2.4.1'
+  NODE_VERSION: '20.14.1'
+  SEAL_EXPIRY: '24h'  # Quantum seal validity window
+  FIREWALL_MODE: 'enforced'
+  AIRGAP_ENABLED: true
+
+jobs:
+  quantum_auth:
+    name: 🔒 Quantum Authentication Gate
+    runs-on: ubuntu-22.04
+    outputs:
+      quantum_seal: ${{ steps.generate_seal.outputs.seal }}
+      threat_level: ${{ steps.threat_scan.outputs.level }}
+      crypto_fingerprint: ${{ steps.key_validation.outputs.fingerprint }}
+    steps:
+      - name: Validate Quantum Token
+        run: |
+          if ! openssl dgst -sha3-512 \
+            <<< "${{ github.event.inputs.auth_token }}" \
+            | grep -q "${{ secrets.TRS_QUANTUM_HASH }}"; then
+              echo "::error::QUANTUM TOKEN VIOLATION"
+              echo "::warning::This incident has been reported to Sentinel War Room"
+              exit 137
+          fi
+
+      - name: Airgap Checkout
+        uses: actions/checkout@v4
+        with:
+          ssh-key: ${{ secrets.TRS_DEPLOY_KEY }}
+          persist-credentials: false
+          lfs: ${{ env.AIRGAP_ENABLED }}
+
+      - name: Validate Crypto Keys
+        id: key_validation
+        uses: ./.github/actions/validate-keys@v3
+        with:
+          key_files: |
+            trs_origin_key.json
+            .github/trusted_keys.pem
+          min_strength: 3072
+
+      - name: Generate Quantum Seal
+        id: generate_seal
+        uses: ./.github/actions/quantum-seal@v2
+        with:
+          commit_hash: ${{ github.sha }}
+          expiry: ${{ env.SEAL_EXPIRY }}
+          crypto_fingerprint: ${{ steps.key_validation.outputs.fingerprint }}
+        env:
+          TRS_SEAL_KEY: ${{ secrets.TRS_QUANTUM_SEAL_KEY }}
+
+      - name: Threat Scan
+        id: threat_scan
+        uses: ./.github/actions/threat-scan@v4
+        with:
+          scan_targets: |
+            ./src
+            ./scripts
+            .github/workflows
+
+  core_deployment:
+    name: 🚀 TRS Armed Deployment
+    needs: quantum_auth
+    runs-on: trs-armed-runner
+    environment: production
+    timeout-minutes: 19  # Quantum seal expiry buffer
+    steps:
+      - name: Validate Quantum Seal
+        run: |
+          node ./scripts/validate-seal.js \
+            --seal '${{ needs.quantum_auth.outputs.quantum_seal }}' \
+            --max-age ${{ env.SEAL_EXPIRY }} \
+            --fingerprint '${{ needs.quantum_auth.outputs.crypto_fingerprint }}'
+
+      - name: Deploy with Nuclear Option
+        uses: ./.github/actions/trs-deploy@v4
+        with:
+          firewall: ${{ env.FIREWALL_MODE }}
+          seal: ${{ needs.quantum_auth.outputs.quantum_seal }}
+          threat_level: ${{ needs.quantum_auth.outputs.threat_level }}
+        env:
+          TRS_NETWORK_KEY: ${{ secrets.TRS_QUANTUM_NETKEY }}
+          TRS_BLOOD_SEAL: ${{ secrets.TRS_BLOOD_SEAL }}
+
+  sentinel_watch:
+    name: 📡 Sentinel Live Monitoring
+    needs: core_deployment
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Initialize War Room Link
+        uses: ./.github/actions/sentinel-init@v2
+        with:
+          deployment_id: ${{ github.run_id }}
+          quantum_seal: ${{ needs.quantum_auth.outputs.quantum_seal }}
+
+      - name: Continuous Threat Feed
+        uses: ./.github/actions/threat-feed@v3
+        with:
+          scan_interval: '30s'
+          max_duration: '15m'
+        env:
+          SENTINEL_API_KEY: ${{ secrets.TRS_SENTINEL_API }}
+          WARROOM_ENDPOINT: ${{ secrets.TRS_WARROOM_ENDPOINT }}
+
+      - name: Finalize Audit Trail
+        if: ${{ always() }}
+        uses: ./.github/actions/seal-audit@v2
+        with:
+          quantum_seal: ${{ needs.quantum_auth.outputs.quantum_seal }}
+          status: ${{ job.status }}
