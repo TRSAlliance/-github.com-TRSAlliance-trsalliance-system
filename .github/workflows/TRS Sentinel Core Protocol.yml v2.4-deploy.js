@@ -1,4 +1,4 @@
-name: 🛡️ TRS Sentinel Core Protocol v2.4-deploy.js
+name: 🛡️ TRS Sentinel Core Protocol.yml v2.4-deploy.js
 
 on:
   workflow_dispatch:
