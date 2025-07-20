@@ -1,0 +1,104 @@
+name: TRS Sentinel Protocol v2.4
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # For manual War Room triggers
+
+env:
+  TRS_ENV: ${{ contains(github.ref, 'main') && 'production' || 'staging' }}
+  FIREBASE_PROJECT: ghostshift-${{ env.TRS_ENV == 'production' && 'd5f46' || 'staging' }}
+
+jobs:
+  # --- PHASE 1: TRS CORE VALIDATION ---
+  validate-origin:
+    name: "TRS Origin Verification"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for full commit history check
+          
+      - name: Cryptographic Origin Check
+        run: |
+          if ! sha256sum TRS_ORIGIN_KEY.md | grep -q $(git rev-parse HEAD:TRS_ORIGIN_KEY.md); then
+            echo "::error::TRS ORIGIN KEY TAMPER DETECTED"
+            exit 1
+          fi
+
+  # --- PHASE 2: AI MODULE TESTING ---
+  test-ai-modules:
+    name: "AI Logic Validation"
+    needs: validate-origin
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        module: [skeptic-bot, union-boss, creedy-display]
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Test ${{ matrix.module }}
+        run: npm run test:ai -- --module ${{ matrix.module }}
+        env:
+          TRS_TEST_MODE: strict
+          FIRESTORE_EMULATOR_HOST: localhost:8080
+
+  # --- PHASE 3: SECURE DEPLOYMENT ---  
+  deploy:
+    name: "TRS Trident Deployment"
+    needs: test-ai-modules
+    runs-on: ubuntu-22.04
+    environment: ${{ env.TRS_ENV }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Zero-downtime Netlify deploy
+      - name: Deploy Frontend
+        uses: nwtgck/actions-netlify@v2.0
+        with:
+          publish-dir: ./dist
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "TRS v2.4-${{ github.sha }}"
+          netlify-auth-token: ${{ secrets.TRS_NETLIFY_TOKEN }}
+          
+      # Firestore rules deployment
+      - name: Deploy Security Rules
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.TRS_FIREBASE_SA }}
+          projectId: ${{ env.FIREBASE_PROJECT }}
+          
+      # Post-deploy verification
+      - name: Verify Sentinel Uptime
+        run: curl -sSf https://admin.trsalliance.org/api/health | jq -e '.status == "operational"'
+        
+  # --- ROLLBACK PROTOCOL ---      
+  rollback:
+    name: "Emergency Rollback"
+    if: failure()
+    needs: deploy
+    runs-on: ubuntu-22.04
+    environment: war-room
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v3
+        with:
+          name: trs-backup-${{ github.run_number }}
+          
+      - name: Restore Previous Version
+        run: |
+          npm run rollback -- \
+            --firebase ${{ env.FIREBASE_PROJECT }} \
+            --netlify ${{ secrets.TRS_NETLIFY_SITE_ID }} \
+            --commit $(cat .trs-backup/LAST_STABLE)
