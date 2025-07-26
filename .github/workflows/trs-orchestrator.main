@@ -29,12 +29,34 @@ jobs:
       - name: 🚀 Deploy to Netlify
         uses: nwtgck/actions-netlify@v2
         with:
-          publish-dir: './build'
+          publish-dir: './dist'
           production-branch: 'main'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           netlify-auth-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           netlify-site-id: ${{ secrets.NETLIFY_SITE_ID }}
 
+        - name: 📊 Log Run to Supabase
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          START_TIME: ${{ steps.build-start.outputs.timestamp }}
+        run: |
+          END_TIME=$(date +%s)
+          DURATION_MS=$(( (END_TIME - $START_TIME) * 1000 ))
+          curl -X POST "$SUPABASE_URL/rest/v1/gh_action_runs" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "workflow_name": "${{ github.workflow }}",
+              "status": "${{ job.status }}",
+              "conclusion": "${{ job.conclusion }}",
+              "run_id": ${{ github.run_id }},
+              "duration_ms": '"$DURATION_MS"',
+              "event": "${{ github.event_name }}",
+              "run_started_at": "'$(date -u -d @$START_TIME +%Y-%m-%dT%H:%M:%SZ)'"
+            }'
     inputs:
       orchestration_mode:
         description: 'System Operation Mode'
