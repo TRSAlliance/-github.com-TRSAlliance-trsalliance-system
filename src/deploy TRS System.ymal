@@ -1,45 +1,72 @@
 name: Deploy TRS System
 on:
   push:
+    branches: [main, develop]
+  pull_request:
     branches: [main]
-    paths: ['src/deploy/**', 'src/lib/**']
+  workflow_dispatch:
+    inputs:
+      deployment_target:
+        description: 'Where to deploy?'
+        required: true
+        type: choice
+        options:
+          - 'all-platforms'
+          - 'netlify-only'
+          - 'vercel-only'
+          - 'firebase-only'
+          - 'staging-only'
+      ai_assistance:
+        description: 'Enable AI troubleshooting?'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  NODE_VERSION: '18'
+  TRS_PROJECT_NAME: 'trsalliance-system'
+  DEPLOYMENT_ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
 
 jobs:
-  deploy-trs:
-    name: Deploy TRS Unity Protocol
+  # Pre-deployment AI Analysis
+  trs-diagnostics:
     runs-on: ubuntu-latest
+    outputs:
+      system-health: ${{ steps.health-check.outputs.status }}
+      deployment-ready: ${{ steps.validate.outputs.ready }}
+      ai-recommendations: ${{ steps.ai-analysis.outputs.recommendations }}
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Checkout TRS System
+        uses: actions/checkout@v4
         with:
-          node-version: '18'
+          fetch-depth: 0  # Full history for AI analysis
       
-      - name: Install Dependencies
-        run: npm ci
-      
-      - name: Setup Supabase Integration
-        run: npm run setup-supabase-integration
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-      
-      - name: Deploy AI Boundaries
-        run: npm run deploy-ai-boundaries
-        env:
-          TRS_SECURITY_LEVEL: maximum
-      
-      - name: Configure TRS Deployment
-        run: npm run configure-trs-deployment
-        env:
-          TRS_OPERATIONAL_FREQUENCY: realtime
-      
-      - name: Validate System Health
-        run: npm run validate-system-health
-      
-      - name: Deploy to Production
-        run: npm run deploy-production
-        env:
-          DEPLOY_ENV: production
+      - name: TRS System Health Check
+        id: health-check
+        run: |
+          echo "🔍 Running TRS System diagnostics..."
+          
+          HEALTH_STATUS="healthy"
+          ISSUES=()
+          
+          # Check critical TRS files
+          if [ ! -f "src/index.js" ] && [ ! -f "src/index.ts" ] && [ ! -f "src/main.js" ]; then
+            ISSUES+=("missing-entry-point")
+            HEALTH_STATUS="needs-attention"
+          fi
+          
+          # Check package.json integrity
+          if [ -f "package.json" ]; then
+            if ! node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"; then
+              ISSUES+=("invalid-package-json")
+              HEALTH_STATUS="critical"
+            fi
+          fi
+          
+          # Check for TRS-specific configurations
+          if [ ! -f "trs.config.js" ] && [ ! -f "trs.config.json" ]; then
+            ISSUES+=("missing-trs-config")
+          fi
+          
+          # Environment variables check
+          if [ ! -f ".env.example" ] && grep -r "process.env" src/ 2>/dev/null; then
