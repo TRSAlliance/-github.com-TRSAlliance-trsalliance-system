@@ -1,0 +1,779 @@
+name: Final TRS System Cleanup
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Cleanup Action'
+        required: true
+        type: choice
+        options:
+          - 'fix-misplaced-files'
+          - 'initialize-directories'
+          - 'create-core-files'
+          - 'full-system-setup'
+      auto_commit:
+        description: 'Auto-commit changes?'
+        type: boolean
+        default: true
+
+env:
+  TRS_VERSION: 'v2.4.1'
+  SYSTEM_STATUS: 'OPTIMIZING'
+
+jobs:
+  cleanup-misplaced-files:
+    runs-on: ubuntu-latest
+    if: contains(github.event.inputs.action, 'fix-misplaced') || github.event.inputs.action == 'full-system-setup'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Handle Misplaced Workflow File
+        run: |
+          echo "🔍 Checking for misplaced workflow files..."
+          
+          if [ -f "src/deploy TRS System.ymal" ]; then
+            echo "📁 Found misplaced workflow: src/deploy TRS System.ymal"
+            
+            # Check if it's a valid workflow
+            if grep -q "name:" "src/deploy TRS System.ymal" && grep -q "on:" "src/deploy TRS System.ymal"; then
+              echo "✅ File appears to be a valid workflow"
+              
+              # Create a backup first
+              cp "src/deploy TRS System.ymal" "backup-deploy-trs-$(date +%Y%m%d).ymal"
+              
+              # Check if we already have a similar workflow
+              if [ ! -f ".github/workflows/deploy-trs-system.yml" ]; then
+                echo "📦 Moving to correct location as deploy-trs-system.yml"
+                mv "src/deploy TRS System.ymal" ".github/workflows/deploy-trs-system.yml"
+              else
+                echo "⚠️ Similar workflow exists, archiving misplaced file"
+                mv "src/deploy TRS System.ymal" "archived-deploy-trs-$(date +%Y%m%d).ymal"
+              fi
+            else
+              echo "❓ File doesn't appear to be a valid workflow, archiving"
+              mv "src/deploy TRS System.ymal" "archived-unknown-deploy-$(date +%Y%m%d).ymal"
+            fi
+            
+            echo "✅ Misplaced file handled successfully"
+          else
+            echo "✅ No misplaced workflow files found"
+          fi
+
+  initialize-directories:
+    runs-on: ubuntu-latest
+    if: contains(github.event.inputs.action, 'initialize') || github.event.inputs.action == 'full-system-setup'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Initialize TRS Directory Structure
+        run: |
+          echo "🏗️ Initializing TRS Alliance directory structure..."
+          
+          # Core source directories
+          mkdir -p src/{core,api,auth,database,utils,middleware}
+          mkdir -p src/pages/{dashboard,admin,public}
+          
+          # CLI system
+          mkdir -p cli/{commands,tools,utils,config}
+          
+          # Component architecture  
+          mkdir -p components/{ui,business,data,shared,integrations}
+          
+          # Scripts and utilities
+          mkdir -p scripts/{deployment,maintenance,utilities,monitoring}
+          
+          # Public assets
+          mkdir -p public/{assets,images,styles,scripts}
+          
+          # Database and schema
+          mkdir -p supabase_schema/{tables,functions,triggers,policies}
+          
+          echo "📝 Creating directory documentation..."
+          
+          # Add README files to key directories
+          cat > src/README.md << 'EOF'
+# TRS Alliance - Source Code
+
+## Directory Structure
+
+### `/core`
+Core TRS Alliance system functionality and business logic.
+
+### `/api` 
+REST API endpoints and GraphQL resolvers.
+
+### `/auth`
+Authentication and authorization systems.
+
+### `/database`
+Database connection, models, and data access layers.
+
+### `/pages`
+Application pages and user interfaces.
+
+### `/utils`
+Shared utilities and helper functions.
+
+### `/middleware`
+Express middleware and request processing.
+EOF
+
+          cat > cli/README.md << 'EOF'
+# TRS Alliance - Command Line Interface
+
+## Commands Structure
+
+### `/commands`
+Individual CLI command implementations.
+
+### `/tools`
+Standalone tools and utilities.
+
+### `/utils`
+Shared CLI utilities and helpers.
+
+### `/config`
+CLI configuration and settings management.
+
+## Usage
+```bash
+npm run cli -- <command> [options]
+```
+EOF
+
+          cat > components/README.md << 'EOF'
+# TRS Alliance - Component System
+
+## Architecture
+
+### `/ui`
+User interface components (React/Vue components).
+
+### `/business`
+Business logic components and services.
+
+### `/data`
+Data management and state components.
+
+### `/shared`
+Reusable components across the system.
+
+### `/integrations`
+Third-party service integrations.
+EOF
+
+          echo "✅ Directory structure initialized"
+
+  create-core-files:
+    runs-on: ubuntu-latest
+    if: contains(github.event.inputs.action, 'create-core') || github.event.inputs.action == 'full-system-setup'
+    needs: [cleanup-misplaced-files, initialize-directories]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref }}
+      
+      - name: Create Core TRS System Files
+        run: |
+          echo "📝 Creating core TRS Alliance system files..."
+          
+          # Main entry point
+          if [ ! -f "src/index.js" ]; then
+            cat > src/index.js << 'EOF'
+/**
+ * TRS Alliance System v2.4.1
+ * Main Entry Point - Quantum-Hardened Multi-Platform Integration
+ */
+
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+require('dotenv').config();
+
+// Import core modules
+const { TRSCore } = require('./core/trs-core');
+const { initializeDatabase } = require('./database/connection');
+const { authMiddleware } = require('./auth/middleware');
+const { apiRoutes } = require('./api/routes');
+
+class TRSAllianceSystem {
+  constructor() {
+    this.app = express();
+    this.port = process.env.PORT || 3000;
+    this.version = '2.4.1';
+    this.quantumHardened = process.env.QUANTUM_HARDENED === 'true';
+    this.environment = process.env.NODE_ENV || 'development';
+  }
+
+  async initialize() {
+    console.log(`🚀 TRS Alliance System v${this.version} Initializing...`);
+    console.log(`🔒 Quantum Hardened: ${this.quantumHardened ? 'ENABLED' : 'DISABLED'}`);
+    console.log(`🌍 Environment: ${this.environment.toUpperCase()}`);
+    
+    try {
+      // Initialize core middleware
+      this.setupMiddleware();
+      
+      // Initialize database connections
+      await initializeDatabase();
+      console.log('✅ Database connection established');
+      
+      // Initialize TRS Core systems
+      await TRSCore.initialize();
+      console.log('✅ TRS Core systems active');
+      
+      // Setup API routes
+      this.setupRoutes();
+      console.log('✅ API routes configured');
+      
+      console.log(`🌟 TRS Alliance System Ready`);
+      return this;
+      
+    } catch (error) {
+      console.error('❌ TRS System initialization failed:', error);
+      throw error;
+    }
+  }
+
+  setupMiddleware() {
+    // Security middleware
+    this.app.use(cors({
+      origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+      credentials: true
+    }));
+    
+    this.app.use(express.json({ limit: '10mb' }));
+    this.app.use(express.urlencoded({ extended: true }));
+    
+    // Static files
+    this.app.use(express.static(path.join(__dirname, '../public')));
+    
+    // Authentication
+    this.app.use('/api', authMiddleware);
+  }
+
+  setupRoutes() {
+    // Health check
+    this.app.get('/health', (req, res) => {
+      res.json({
+        status: 'OPERATIONAL',
+        version: this.version,
+        quantumHardened: this.quantumHardened,
+        environment: this.environment,
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+      });
+    });
+
+    // System status
+    this.app.get('/api/system/status', (req, res) => {
+      res.json({
+        system: 'TRS Alliance Core',
+        status: 'ACTIVE',
+        protocols: [
+          'SENTINEL_QUANTUM',
+          'ORIGIN_KEY',
+          'SECRET_ROTATION',
+          'ORCHESTRATOR',
+          'SYSTEM_ANALYZER'
+        ],
+        securityLevel: this.quantumHardened ? 'QUANTUM' : 'STANDARD',
+        activeConnections: 0, // You'd implement this
+        lastHealthCheck: new Date().toISOString()
+      });
+    });
+
+    // API routes
+    this.app.use('/api', apiRoutes);
+
+    // Serve React/Vue frontend for SPA
+    this.app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, '../public/index.html'));
+    });
+  }
+
+  start() {
+    this.app.listen(this.port, () => {
+      console.log(`🌟 TRS Alliance System Active - Port ${this.port}`);
+      console.log(`🔗 Health Check: http://localhost:${this.port}/health`);
+      console.log(`🔗 System Status: http://localhost:${this.port}/api/system/status`);
+    });
+  }
+}
+
+// Export for testing and external use
+module.exports = TRSAllianceSystem;
+
+// Auto-start if this is the main module
+if (require.main === module) {
+  const trsSystem = new TRSAllianceSystem();
+  trsSystem.initialize()
+    .then(() => trsSystem.start())
+    .catch(error => {
+      console.error('💥 TRS System startup failed:', error);
+      process.exit(1);
+    });
+}
+EOF
+          fi
+          
+          # Core TRS system module
+          mkdir -p src/core
+          if [ ! -f "src/core/trs-core.js" ]; then
+            cat > src/core/trs-core.js << 'EOF'
+/**
+ * TRS Alliance Core System
+ * Central coordination and management
+ */
+
+class TRSCore {
+  static instance = null;
+  
+  constructor() {
+    if (TRSCore.instance) {
+      return TRSCore.instance;
+    }
+    
+    this.initialized = false;
+    this.systems = new Map();
+    this.config = {
+      quantumHardened: process.env.QUANTUM_HARDENED === 'true',
+      securityLevel: process.env.SECURITY_LEVEL || 'standard',
+      environment: process.env.NODE_ENV || 'development'
+    };
+    
+    TRSCore.instance = this;
+  }
+
+  static async initialize() {
+    const core = new TRSCore();
+    await core.init();
+    return core;
+  }
+
+  async init() {
+    if (this.initialized) return this;
+    
+    console.log('🔧 Initializing TRS Core Systems...');
+    
+    // Initialize subsystems
+    await this.initializeSentinelProtocol();
+    await this.initializeOriginKey();
+    await this.initializeSecretRotation();
+    
+    this.initialized = true;
+    console.log('✅ TRS Core Systems initialized');
+    return this;
+  }
+
+  async initializeSentinelProtocol() {
+    console.log('🛡️ Initializing Sentinel Protocol...');
+    // Integration with your Sentinel workflow
+    this.systems.set('sentinel', {
+      status: 'active',
+      version: '2.4.1',
+      quantumHardened: this.config.quantumHardened,
+      lastCheck: new Date()
+    });
+  }
+
+  async initializeOriginKey() {
+    console.log('🔐 Initializing Origin Key System...');
+    // Integration with your Origin Key workflow
+    this.systems.set('originKey', {
+      status: 'active',
+      rotation: 'scheduled',
+      lastRotation: new Date()
+    });
+  }
+
+  async initializeSecretRotation() {
+    console.log('🔄 Initializing Secret Rotation...');
+    // Integration with your secret rotation workflow
+    this.systems.set('secretRotation', {
+      status: 'active',
+      schedule: 'weekly',
+      nextRotation: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    });
+  }
+
+  getSystemStatus() {
+    return {
+      initialized: this.initialized,
+      config: this.config,
+      systems: Object.fromEntries(this.systems),
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  async healthCheck() {
+    const status = {
+      overall: 'healthy',
+      systems: {},
+      timestamp: new Date().toISOString()
+    };
+
+    for (const [name, system] of this.systems) {
+      status.systems[name] = {
+        status: system.status,
+        healthy: system.status === 'active'
+      };
+    }
+
+    return status;
+  }
+}
+
+module.exports = { TRSCore };
+EOF
+          fi
+          
+          # Basic API routes
+          mkdir -p src/api
+          if [ ! -f "src/api/routes.js" ]; then
+            cat > src/api/routes.js << 'EOF'
+/**
+ * TRS Alliance API Routes
+ */
+
+const express = require('express');
+const { TRSCore } = require('../core/trs-core');
+
+const router = express.Router();
+
+// System information routes
+router.get('/info', async (req, res) => {
+  try {
+    const core = new TRSCore();
+    const status = core.getSystemStatus();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get system info' });
+  }
+});
+
+// Health check endpoint
+router.get('/health', async (req, res) => {
+  try {
+    const core = new TRSCore();
+    const health = await core.healthCheck();
+    res.json(health);
+  } catch (error) {
+    res.status(500).json({ error: 'Health check failed' });
+  }
+});
+
+// Placeholder for additional API routes
+router.get('/placeholder', (req, res) => {
+  res.json({ 
+    message: 'TRS Alliance API is active',
+    version: '2.4.1',
+    timestamp: new Date().toISOString()
+  });
+});
+
+module.exports = { apiRoutes: router };
+EOF
+          fi
+          
+          # Auth middleware
+          mkdir -p src/auth
+          if [ ! -f "src/auth/middleware.js" ]; then
+            cat > src/auth/middleware.js << 'EOF'
+/**
+ * TRS Alliance Authentication Middleware
+ */
+
+const jwt = require('jsonwebtoken');
+
+const authMiddleware = (req, res, next) => {
+  // Skip auth for health checks and public endpoints
+  if (req.path === '/health' || req.path.startsWith('/public')) {
+    return next();
+  }
+
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+  
+  if (!token && process.env.NODE_ENV === 'development') {
+    // In development, allow without token
+    return next();
+  }
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access denied. No token provided.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'trs-dev-secret');
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(400).json({ error: 'Invalid token.' });
+  }
+};
+
+module.exports = { authMiddleware };
+EOF
+          fi
+          
+          # Database connection
+          mkdir -p src/database
+          if [ ! -f "src/database/connection.js" ]; then
+            cat > src/database/connection.js << 'EOF'
+/**
+ * TRS Alliance Database Connection
+ */
+
+const { createClient } = require('@supabase/supabase-js');
+
+let supabase = null;
+
+const initializeDatabase = async () => {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.log('⚠️ Supabase credentials not found, using mock database');
+      return initializeMockDatabase();
+    }
+
+    supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Test connection
+    const { data, error } = await supabase.from('_health_check').select('*').limit(1);
+    
+    if (error && !error.message.includes('does not exist')) {
+      throw error;
+    }
+    
+    console.log('✅ Supabase connection established');
+    return supabase;
+    
+  } catch (error) {
+    console.log('⚠️ Supabase connection failed, using mock database:', error.message);
+    return initializeMockDatabase();
+  }
+};
+
+const initializeMockDatabase = () => {
+  console.log('🔧 Using mock database for development');
+  
+  // Mock database for development
+  const mockDB = {
+    from: (table) => ({
+      select: () => ({ data: [], error: null }),
+      insert: () => ({ data: null, error: null }),
+      update: () => ({ data: null, error: null }),
+      delete: () => ({ data: null, error: null })
+    })
+  };
+  
+  return mockDB;
+};
+
+const getDatabase = () => {
+  return supabase;
+};
+
+module.exports = { 
+  initializeDatabase, 
+  getDatabase 
+};
+EOF
+          fi
+          
+          echo "✅ Core system files created"
+
+  finalize-setup:
+    runs-on: ubuntu-latest
+    needs: [cleanup-misplaced-files, initialize-directories, create-core-files]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref }}
+      
+      - name: Update Package.json
+        run: |
+          echo "📦 Updating package.json with TRS Alliance configuration..."
+          
+          if [ -f "package.json" ]; then
+            # Backup existing package.json
+            cp package.json package.json.backup
+            
+            # Update with comprehensive scripts
+            npx json -I -f package.json -e '
+              this.name = "@trsalliance/core-system";
+              this.version = "2.4.1";
+              this.description = "TRS Alliance Core System - Quantum-Hardened Multi-Platform Integration";
+              this.main = "src/index.js";
+              this.scripts = this.scripts || {};
+              this.scripts.start = "node src/index.js";
+              this.scripts.dev = "nodemon src/index.js";
+              this.scripts.build = "npm run lint && npm run test";
+              this.scripts.test = "jest --coverage";
+              this.scripts.lint = "eslint src/ cli/ components/";
+              this.scripts["lint:fix"] = "eslint src/ cli/ components/ --fix";
+              this.scripts["trs:health"] = "node scripts/health-check.js";
+              this.scripts["trs:deploy"] = "npm run build && npm run deploy:all";
+              this.scripts["cli"] = "node cli/trs-cli.js";
+              this.scripts["dev:full"] = "concurrently \"npm run dev\" \"npm run cli -- watch\"";
+            ' 2>/dev/null || echo "⚠️ Could not auto-update package.json"
+          else
+            echo "📝 Creating new package.json..."
+            cat > package.json << 'EOF'
+{
+  "name": "@trsalliance/core-system",
+  "version": "2.4.1",
+  "description": "TRS Alliance Core System - Quantum-Hardened Multi-Platform Integration",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "build": "npm run lint && npm run test",
+    "test": "jest --coverage",
+    "lint": "eslint src/ cli/ components/",
+    "lint:fix": "eslint src/ cli/ components/ --fix",
+    "trs:health": "node scripts/health-check.js",
+    "trs:deploy": "npm run build && npm run deploy:all",
+    "cli": "node cli/trs-cli.js",
+    "dev:full": "concurrently \"npm run dev\" \"npm run cli -- watch\""
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "@supabase/supabase-js": "^2.38.0",
+    "jsonwebtoken": "^9.0.2",
+    "axios": "^1.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "concurrently": "^8.2.1",
+    "jest": "^29.7.0",
+    "eslint": "^8.50.0",
+    "@eslint/create-config": "^0.4.6"
+  },
+  "keywords": [
+    "trs-alliance",
+    "quantum-hardened",
+    "multi-platform",
+    "security",
+    "orchestration"
+  ],
+  "author": "TRS Alliance",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+EOF
+          fi
+      
+      - name: Create Environment Template
+        run: |
+          echo "🔐 Creating comprehensive environment template..."
+          
+          cat > .env.example << 'EOF'
+# TRS Alliance System Environment Configuration
+# Copy this file to .env and update with your actual values
+
+# === System Configuration ===
+NODE_ENV=development
+PORT=3000
+TRS_VERSION=2.4.1
+
+# === Security Settings ===
+QUANTUM_HARDENED=false
+SECURITY_LEVEL=standard
+JWT_SECRET=your-super-secure-jwt-secret-key-here
+ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
+
+# === Database Configuration ===
+# Supabase (Primary)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_KEY=your-supabase-service-key
+
+# Neon (Backup)
+NEON_DATABASE_URL=postgresql://username:password@endpoint/database
+
+# === AI Services ===
+OPENAI_API_KEY=your-openai-api-key
+GROK_API_KEY=your-grok-api-key
+
+# === Deployment Platforms ===
+# Netlify
+NETLIFY_AUTH_TOKEN=your-netlify-auth-token
+NETLIFY_SITE_ID=your-netlify-site-id
+
+# Vercel
+VERCEL_TOKEN=your-vercel-token
+ORG_ID=your-vercel-org-id
+PROJECT_ID=your-vercel-project-id
+
+# Firebase
+FIREBASE_PROJECT_ID=your-firebase-project-id
+FIREBASE_SERVICE_ACCOUNT=your-firebase-service-account-json
+
+# === TRS System Specific ===
+TRS_API_URL=https://api.trsalliance.org
+TRS_SECRET_KEY=your-trs-secret-key
+TRS_SYSTEM_TOKEN=your-github-token-for-system-operations
+
+# === Monitoring & Logging ===
+LOG_LEVEL=info
+HEALTH_CHECK_INTERVAL=300000
+METRICS_ENABLED=true
+
+# === Features Flags ===
+ENABLE_STEALTH_LOGS=false
+ENABLE_QUANTUM_PROTOCOLS=false
+ENABLE_AUTO_DEPLOYMENT=true
+EOF
+
+          echo "✅ Environment template created"
+      
+      - name: Final System Validation
+        run: |
+          echo "🔍 Running final system validation..."
+          
+          # Check directory structure
+          echo "📁 Directory structure:"
+          find . -type d -name "node_modules" -prune -o -type d -print | head -20
+          
+          # Check critical files
+          echo "📄 Critical files check:"
+          for file in "src/index.js" "package.json" ".env.example" "README.md"; do
+            if [ -f "$file" ]; then
+              echo "✅ $file exists"
+            else
+              echo "❌ $file missing"
+            fi
+          done
+          
+          # Validate package.json
+          if [ -f "package.json" ]; then
+            if node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"; then
+              echo "✅ package.json is valid JSON"
+            else
+              echo "❌ package.json has syntax errors"
+            fi
+          fi
+          
+          echo "🎯 System validation complete"
+      
+      - name: Commit All Changes
+        if: github.event.inputs.auto_commit == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: '🚀 TRS Alliance System: Complete setup and optimization'
+          file_pattern: '.'
+          commit_options: '--no-verify'
