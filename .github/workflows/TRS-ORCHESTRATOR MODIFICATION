@@ -1,0 +1,289 @@
+# 1. TRS-ORCHESTRATOR WORKFLOW MODIFICATION
+# Add this job to your existing trs-orchestrator.yml
+jobs:
+  orchestrator-main:
+    # Your existing orchestrator logic here
+    runs-on: ubuntu-latest
+    steps:
+      # Your existing steps...
+      
+  log-orchestrator-metrics:
+    name: 📊 Log Orchestrator Metrics
+    runs-on: ubuntu-latest
+    needs: orchestrator-main
+    if: always()
+    steps:
+      - name: Calculate Duration and Log to Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          # Calculate duration from workflow start
+          START_TIME="${{ github.event.head_commit.timestamp }}"
+          END_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          START_EPOCH=$(date -d "$START_TIME" +%s)
+          END_EPOCH=$(date -d "$END_TIME" +%s)
+          DURATION_MS=$(( (END_EPOCH - START_EPOCH) * 1000 ))
+          
+          # Determine final status
+          STATUS="${{ needs.orchestrator-main.result }}"
+          
+          curl -X POST "$SUPABASE_URL/rest/v1/gh_action_runs" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d '{
+              "workflow_name": "trs-orchestrator",
+              "status": "'$STATUS'",
+              "conclusion": "'$STATUS'",
+              "run_id": ${{ github.run_id }},
+              "duration_ms": '$DURATION_MS',
+              "event": "${{ github.event_name }}",
+              "run_started_at": "${{ github.event.head_commit.timestamp }}"
+            }'
+
+---
+
+# 2. TRS-SENTINEL-CORE-PROTOCOL WORKFLOW MODIFICATION
+# Add this to your TRS-Sentinel-Core-Protocol-v2.4.1.yml
+jobs:
+  sentinel-security-scan:
+    # Your existing sentinel logic here
+    runs-on: ubuntu-latest
+    steps:
+      # Your existing steps...
+      
+  log-sentinel-metrics:
+    name: 🛡️ Log Quantum Security Metrics
+    runs-on: ubuntu-latest
+    needs: sentinel-security-scan
+    if: always()
+    steps:
+      - name: Log Quantum-Hardened Workflow Status
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          START_TIME="${{ github.event.head_commit.timestamp }}"
+          END_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          START_EPOCH=$(date -d "$START_TIME" +%s)
+          END_EPOCH=$(date -d "$END_TIME" +%s)
+          DURATION_MS=$(( (END_EPOCH - START_EPOCH) * 1000 ))
+          
+          STATUS="${{ needs.sentinel-security-scan.result }}"
+          
+          # Special quantum security flag
+          QUANTUM_STATUS="active"
+          if [[ "$STATUS" != "success" ]]; then
+            QUANTUM_STATUS="compromised"
+          fi
+          
+          curl -X POST "$SUPABASE_URL/rest/v1/gh_action_runs" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d '{
+              "workflow_name": "TRS-Sentinel-Core-Protocol-v2.4.1",
+              "status": "'$STATUS'",
+              "conclusion": "'$STATUS'",
+              "run_id": ${{ github.run_id }},
+              "duration_ms": '$DURATION_MS',
+              "event": "${{ github.event_name }}",
+              "run_started_at": "${{ github.event.head_commit.timestamp }}"
+            }'
+            
+      - name: 🚨 Alert on Quantum Security Failure
+        if: needs.sentinel-security-scan.result == 'failure'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_CRITICAL }}
+        run: |
+          curl -H "Content-Type: application/json" \
+          -X POST $DISCORD_WEBHOOK_URL \
+          -d '{
+            "content": "🔥 **CRITICAL: Quantum Security Breach**",
+            "embeds": [{
+              "title": "TRS-Sentinel-Core-Protocol-v2.4.1 FAILED",
+              "description": "**IMMEDIATE ACTION REQUIRED**\n\nQuantum-hardened security protocol has been compromised.\n\nRun ID: `${{ github.run_id }}`\nRepository: `${{ github.repository }}`\nEvent: `${{ github.event_name }}`",
+              "color": 16711680,
+              "timestamp": "'$(date --utc +%Y-%m-%dT%H:%M:%SZ)'",
+              "fields": [
+                {
+                  "name": "Security Level",
+                  "value": "🔴 **QUANTUM COMPROMISED**",
+                  "inline": true
+                },
+                {
+                  "name": "Protocol Status",
+                  "value": "🚫 **OFFLINE**",
+                  "inline": true
+                }
+              ]
+            }]
+          }'
+
+---
+
+# 3. TRS-ORIGIN-KEY WORKFLOW MODIFICATION
+# Add this to your TRS-ORIGIN-KEY.yml
+jobs:
+  origin-key-validation:
+    # Your existing origin key logic here
+    runs-on: ubuntu-latest
+    steps:
+      # Your existing steps...
+      
+  log-origin-key-metrics:
+    name: 🔑 Log Origin Key Metrics
+    runs-on: ubuntu-latest
+    needs: origin-key-validation
+    if: always()
+    steps:
+      - name: Log Critical Key Status
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          START_TIME="${{ github.event.head_commit.timestamp }}"
+          END_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          START_EPOCH=$(date -d "$START_TIME" +%s)
+          END_EPOCH=$(date -d "$END_TIME" +%s)
+          DURATION_MS=$(( (END_EPOCH - START_EPOCH) * 1000 ))
+          
+          STATUS="${{ needs.origin-key-validation.result }}"
+          
+          curl -X POST "$SUPABASE_URL/rest/v1/gh_action_runs" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d '{
+              "workflow_name": "TRS-ORIGIN-KEY",
+              "status": "'$STATUS'",
+              "conclusion": "'$STATUS'",
+              "run_id": ${{ github.run_id }},
+              "duration_ms": '$DURATION_MS',
+              "event": "${{ github.event_name }}",
+              "run_started_at": "${{ github.event.head_commit.timestamp }}"
+            }'
+            
+      - name: 🚨 Critical Key Failure Alert
+        if: needs.origin-key-validation.result == 'failure'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_CRITICAL }}
+        run: |
+          curl -H "Content-Type: application/json" \
+          -X POST $DISCORD_WEBHOOK_URL \
+          -d '{
+            "content": "🔥 **CRITICAL: Origin Key Failure**",
+            "embeds": [{
+              "title": "TRS-ORIGIN-KEY Validation Failed",
+              "description": "**SECURITY BREACH DETECTED**\n\nOrigin key validation has failed. System integrity compromised.\n\nRun ID: `${{ github.run_id }}`",
+              "color": 16776960,
+              "timestamp": "'$(date --utc +%Y-%m-%dT%H:%M:%SZ)'"
+            }]
+          }'
+
+---
+
+# 4. SECRET-ROTATION WORKFLOW MODIFICATION
+# Add this to your secret-rotation.yml
+jobs:
+  rotate-secrets:
+    # Your existing secret rotation logic here
+    runs-on: ubuntu-latest
+    steps:
+      # Your existing steps...
+      
+  log-rotation-metrics:
+    name: 🔄 Log Secret Rotation Metrics
+    runs-on: ubuntu-latest
+    needs: rotate-secrets
+    if: always()
+    steps:
+      - name: Log Security Rotation Status
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          START_TIME="${{ github.event.head_commit.timestamp }}"
+          END_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          START_EPOCH=$(date -d "$START_TIME" +%s)
+          END_EPOCH=$(date -d "$END_TIME" +%s)
+          DURATION_MS=$(( (END_EPOCH - START_EPOCH) * 1000 ))
+          
+          STATUS="${{ needs.rotate-secrets.result }}"
+          
+          curl -X POST "$SUPABASE_URL/rest/v1/gh_action_runs" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d '{
+              "workflow_name": "secret-rotation",
+              "status": "'$STATUS'",
+              "conclusion": "'$STATUS'",
+              "run_id": ${{ github.run_id }},
+              "duration_ms": '$DURATION_MS',
+              "event": "${{ github.event_name }}",
+              "run_started_at": "${{ github.event.head_commit.timestamp }}"
+            }'
+
+---
+
+# 5. TRS-SYSTEM-ANALYZER WORKFLOW MODIFICATION
+# Add this to your trs-system-analyzer.yml
+jobs:
+  system-analysis:
+    # Your existing system analysis logic here
+    runs-on: ubuntu-latest
+    steps:
+      # Your existing steps...
+      
+  log-analyzer-metrics:
+    name: 🔍 Log System Analysis Metrics
+    runs-on: ubuntu-latest
+    needs: system-analysis
+    if: always()
+    steps:
+      - name: Log Analysis Status
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          START_TIME="${{ github.event.head_commit.timestamp }}"
+          END_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          START_EPOCH=$(date -d "$START_TIME" +%s)
+          END_EPOCH=$(date -d "$END_TIME" +%s)
+          DURATION_MS=$(( (END_EPOCH - START_EPOCH) * 1000 ))
+          
+          STATUS="${{ needs.system-analysis.result }}"
+          
+          curl -X POST "$SUPABASE_URL/rest/v1/gh_action_runs" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d '{
+              "workflow_name": "trs-system-analyzer",
+              "status": "'$STATUS'",
+              "conclusion": "'$STATUS'",
+              "run_id": ${{ github.run_id }},
+              "duration_ms": '$DURATION_MS',
+              "event": "${{ github.event_name }}",
+              "run_started_at": "${{ github.event.head_commit.timestamp }}"
+            }'
+
+---
+
+# REQUIRED GITHUB SECRETS
+# Add these secrets to your repository settings:
+
+# SUPABASE_URL: https://your-project.supabase.co
+# SUPABASE_SERVICE_KEY: eyJ... (service role key with insert permissions)
+# DISCORD_WEBHOOK_CRITICAL: https://discord.com/api/webhooks/...
+
+---
+
+# SUPABASE ROW
