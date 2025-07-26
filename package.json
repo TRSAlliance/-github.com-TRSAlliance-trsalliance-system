@@ -1,47 +1,23 @@
 {
-  "name": "trsalliance-system",
+  "name": "trsalliance",
   "version": "1.0.0",
-  "private": true,
-  "description": "TRS Alliance v2.3 – Simulation-ready React + Tailwind platform",
+  "description": "TRS Alliance - Trust Recognition System landing page",
+  "type": "module",
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1",
-    "tailwindcss": "^3.3.2"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && git add dist && git commit -m 'Deploy build' && git push"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.14",
-    "postcss": "^8.4.24"
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "vite": "^5.4.8"
   },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  }
-}
-{
-  "name": "trs-unity-protocol",
-  "version": "2.3.1",
-  "scripts": {
-    "setup-supabase-integration": "ts-node src/lib/supabase-integration.ts",
-    "deploy-ai-boundaries": "ts-node src/lib/enhanced-ai-boundaries.ts",
-    "configure-trs-deployment": "ts-node src/deploy/trs-deployment-config.ts",
-    "initialize-deepseek-analyzer": "ts-node src/ai-agents/deepseek-analyzer.ts",
-    "enable-firebase-sync": "ts-node src/lib/firebase-sync.ts",
-    "validate-system-health": "ts-node src/deploy/system-validator.ts",
-    "deploy-production": "ts-node src/deploy/deploy-guardian.ts"
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }
