@@ -1,5 +1,12 @@
 name: 🛡️ TRS Sentinel Core Protocol v2.4.1 (Quantum-Hardened)
+import { neon } from '@neondatabase/serverless';
 
+const sql = neon('postgresql://neondb_owner:npg_8lzbhRygGaj6@ep-bold-cloud-ad5n7bc8-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require');
+
+const posts = await sql('SELECT * FROM posts');
+
+// See https://neon.com/docs/serverless/serverless-driver
+// for more information
 on:
   workflow_dispatch:
     inputs:
