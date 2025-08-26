@@ -1,6 +1,6 @@
 # GhostShift Trust Dashboard
 Modular interface for job verification, ghosting detection, and real-time worker protection using Supabase and visual dashboards.
-# 🚀 TRS Alliance – trs-alliance-v2.3
+# 🚀 TRS Alliance – -github.com-TRSAlliance-trsalliance-system
 
 ## 📌 Overview
 This repository is part of the **TRS Alliance ecosystem**, a platform designed to balance **human–AI collaboration** through ethical systems design, modular scaling, and resilient protocols.  
