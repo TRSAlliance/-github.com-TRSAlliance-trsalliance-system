@@ -49,8 +49,7 @@ jobs:
         run: |
           echo "🔍 Analyzing TRS Workflow Structure..."
           
-          ISSUES=()
-          WORKFLOWS_DIR=".github/workflows"
+          ISSUES=()<br>          WORKFLOWS_DIR=".github/workflows"
           
           # Check for misplaced workflow files
           if find src/ -name "*.yml" -o -name "*.yaml" | grep -E "(deploy|workflow|action)" ; then
@@ -87,8 +86,7 @@ jobs:
         run: |
           echo "🔎 Scanning for File Structure Anomalies..."
           
-          ANOMALIES=()
-          
+          ANOMALIES=()<br>          
           # Check for files in wrong directories
           if [ -f "src/deploy TRS System.ymal" ]; then
             ANOMALIES+=("WORKFLOW_IN_SRC")
@@ -125,8 +123,7 @@ jobs:
         run: |
           echo "🤖 AI Analyzing TRS System Architecture..."
           
-          RECOMMENDATIONS=()
-          
+          RECOMMENDATIONS=()<br>          
           # Analyze workflow redundancy
           WORKFLOW_COUNT=$(find .github/workflows/ -name "*.yml" -o -name "*.yaml" | wc -l 2>/dev/null || echo "0")
           if [ "$WORKFLOW_COUNT" -gt 5 ]; then
@@ -275,18 +272,11 @@ EOF
           echo "⚡ Adding Performance Optimizations..."
           
           if [ -f "package.json" ]; then
+            # Install 'json' utility to safely modify package.json
+            npm install -g json || echo "JSON utility already installed or installation failed."
+            
             # Add missing scripts
-            npx json -I -f package.json -e '
-              this.scripts = this.scripts || {};
-              if (!this.scripts.build) this.scripts.build = "npm run lint && npm run test && npm run compile";
-              if (!this.scripts.dev) this.scripts.dev = "nodemon src/index.js";
-              if (!this.scripts.test) this.scripts.test = "jest";
-              if (!this.scripts.lint) this.scripts.lint = "eslint src/";
-              if (!this.scripts.start) this.scripts.start = "node src/index.js";
-              if (!this.scripts["trs:deploy"]) this.scripts["trs:deploy"] = "npm run build && npm run deploy:all";
-              if (!this.scripts["trs:health"]) this.scripts["trs:health"] = "node scripts/health-check.js";
-            ' 2>/dev/null || echo "⚠️ Could not update package.json scripts"
-          fi
+            npx json -I -f package.json -e '<br>              this.scripts = this.scripts || {};<br>              if (!this.scripts.build) this.scripts.build = "npm run lint && npm run test && npm run compile";<br>              if (!this.scripts.dev) this.scripts.dev = "nodemon src/index.js";<br>              if (!this.scripts.test) this.scripts.test = "jest";<br>              if (!this.scripts.lint) this.scripts.lint = "eslint src/";<br>              if (!this.scripts.start) this.scripts.start = "node src/index.js";<br>              if (!this.scripts["trs:deploy"]) this.scripts["trs:deploy"] = "npm run build && npm run deploy:all";<br>              if (!this.scripts["trs:health"]) this.scripts["trs:health"] = "node scripts/health-check.js";<br>            ' 2>/dev/null || echo "⚠️ Could not update package.json scripts"<br>          fi
           
           # Create health check script
           mkdir -p scripts
@@ -514,3 +504,55 @@ EOF
           name: trs-system-analysis-report
           path: TRS_SYSTEM_ANALYSIS_REPORT.md
           retention-days: 30
+
+  # -----------------------------------------------------------------------------------
+  # 🟢 CRITICAL: TRS Metrics Logging - The 'Result' phase of the T-R-I Loop
+  # -----------------------------------------------------------------------------------
+  log-analyzer-metrics:
+    name: 🔍 Log System Analysis Metrics
+    runs-on: ubuntu-latest
+    # This must run after both the analysis and the cleanup/report jobs complete
+    needs: [trs-structure-analysis, trs-system-cleanup, generate-trs-report] 
+    if: always() # Always run to record success or failure
+    steps:
+      - name: ⏲️ Capture Job Start Time
+        id: start_time
+        run: echo "START_EPOCH=$(date +%s)" >> $GITHUB_OUTPUT
+        
+      - name: 📊 Calculate Duration and Log to Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          START_EPOCH: ${{ steps.start_time.outputs.START_EPOCH }}
+        run: |
+          # Calculate End Time and Duration
+          END_EPOCH=$(date +%s)
+          DURATION_MS=$(( (END_EPOCH - $START_EPOCH) * 1000 ))
+          
+          # Get actual run start time
+          RUN_STARTED_AT=$(date -u -d @$START_EPOCH +%Y-%m-%dT%H:%M:%SZ)
+          
+          # Determine final status from the cleanup job (most critical outcome)
+          # Use the outcome of the most important job in this workflow for reporting.
+          STATUS="${{ needs.trs-system-cleanup.result }}" 
+          
+          # Use a safe temporary file for the JSON payload
+          PAYLOAD=$(mktemp)
+          cat > "$PAYLOAD" << EOF
+{
+"workflow_name": "${{ github.workflow }}",
+"status": "$STATUS",
+"conclusion": "$STATUS",
+"run_id": ${{ github.run_id }},
+"duration_ms": $DURATION_MS,
+"event": "${{ github.event_name }}",
+"run_started_at": "$RUN_STARTED_AT"
+}
+EOF
+          # Send the secure payload via curl
+          curl -X POST "$SUPABASE_URL/rest/v1/gh_action_runs" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d @"$PAYLOAD"
