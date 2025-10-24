@@ -1,30 +1,27 @@
 name: 🛡️ TRS Sentinel Core Protocol v2.4.1 (Quantum-Hardened)
-import { neon } from '@neondatabase/serverless';
 
-const sql = neon('postgresql://neondb_owner:npg_8lzbhRygGaj6@ep-bold-cloud-ad5n7bc8-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require');
-
-const posts = await sql('SELECT * FROM posts');
-
-// See https://neon.com/docs/serverless/serverless-driver
-// for more information
 on:
+  # The Quantum Authentication Gate requires a token for manual runs.
   workflow_dispatch:
     inputs:
       auth_token:
         description: '🔐 24-char TRS Quantum Auth Token'
         required: true
         type: password
+  
+  # Trigger on changes to core system files.
   push:
     branches: [main]
     paths:
       - 'src/**'
       - 'scripts/**'
-      - '.github/workflows/TRS_Sentinel_Core_Protocol.yml'
+      # WARNING: This path is circular, typically you reference the workflow name itself.
+      - '.github/workflows/TRS Sentinel Core Protocol v2.4.1 (Quantum-Hardened).yml' 
 
 env:
   TRS_VERSION: '2.4.1'
   NODE_VERSION: '20.14.1'
-  SEAL_EXPIRY: '24h'  # Quantum seal validity window
+  SEAL_EXPIRY: '24h' # Quantum seal validity window
   FIREWALL_MODE: 'enforced'
   AIRGAP_ENABLED: true
 
@@ -36,9 +33,13 @@ jobs:
       quantum_seal: ${{ steps.generate_seal.outputs.seal }}
       threat_level: ${{ steps.threat_scan.outputs.level }}
       crypto_fingerprint: ${{ steps.key_validation.outputs.fingerprint }}
+    
     steps:
+      # 1. Validate Quantum Token
+      # NOTE: This only checks if the token's hash matches a stored hash, not a true authentication.
       - name: Validate Quantum Token
         run: |
+          # Use a constant-time comparison in a dedicated action for production security.
           if ! openssl dgst -sha3-512 \
             <<< "${{ github.event.inputs.auth_token }}" \
             | grep -q "${{ secrets.TRS_QUANTUM_HASH }}"; then
@@ -47,6 +48,7 @@ jobs:
               exit 137
           fi
 
+      # 2. Secure Airgap Checkout
       - name: Airgap Checkout
         uses: actions/checkout@v4
         with:
@@ -54,6 +56,7 @@ jobs:
           persist-credentials: false
           lfs: ${{ env.AIRGAP_ENABLED }}
 
+      # 3. Key Validation & Seal Generation (using custom actions)
       - name: Validate Crypto Keys
         id: key_validation
         uses: ./.github/actions/validate-keys@v3
@@ -73,6 +76,7 @@ jobs:
         env:
           TRS_SEAL_KEY: ${{ secrets.TRS_QUANTUM_SEAL_KEY }}
 
+      # 4. Threat Scan
       - name: Threat Scan
         id: threat_scan
         uses: ./.github/actions/threat-scan@v4
@@ -87,15 +91,20 @@ jobs:
     needs: quantum_auth
     runs-on: trs-armed-runner
     environment: production
-    timeout-minutes: 19  # Quantum seal expiry buffer
+    timeout-minutes: 19 # Quantum seal expiry buffer
+    
     steps:
+      # 1. Validate Quantum Seal
       - name: Validate Quantum Seal
         run: |
+          # The script is assumed to handle the database connection for validation
           node ./scripts/validate-seal.js \
             --seal '${{ needs.quantum_auth.outputs.quantum_seal }}' \
             --max-age ${{ env.SEAL_EXPIRY }} \
-            --fingerprint '${{ needs.quantum_auth.outputs.crypto_fingerprint }}'
+            --fingerprint '${{ needs.quantum_auth.outputs.crypto_fingerprint }}' \
+            --db-url '${{ secrets.NEON_DATABASE_URL }}' # Pass the secret here
 
+      # 2. Deploy
       - name: Deploy with Nuclear Option
         uses: ./.github/actions/trs-deploy@v4
         with:
@@ -111,6 +120,7 @@ jobs:
     needs: core_deployment
     if: always()
     runs-on: ubuntu-22.04
+    
     steps:
       - name: Initialize War Room Link
         uses: ./.github/actions/sentinel-init@v2
@@ -132,4 +142,4 @@ jobs:
         uses: ./.github/actions/seal-audit@v2
         with:
           quantum_seal: ${{ needs.quantum_auth.outputs.quantum_seal }}
-          status: ${{ job.status }}
+          status: ${{ job. Status }}
