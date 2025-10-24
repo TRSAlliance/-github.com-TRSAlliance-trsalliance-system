@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "framework": "vite",
+  "build": {
+    "env": {
+      "VITE_BUILD_ENV": "production"
+    }
+  },
+  "outputDirectory": "dist"
+}
