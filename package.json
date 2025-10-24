@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "echo '✅ TRS Build Bypass Successful' && exit 0",
+    "build":  "vite build",
     "preview": "vite preview",
     "deploy": "npm run build && git add dist && git commit -m 'Deploy build' && git push"
   },
